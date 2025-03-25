@@ -16,7 +16,6 @@ CREATE TABLE Clientes (
     fecha_registro DATE DEFAULT GETDATE()
 );
 
-
 CREATE TABLE Ubicaciones (
     id INT IDENTITY(1,1) PRIMARY KEY,
     entidad_tipo NVARCHAR(20) CHECK (entidad_tipo IN ('cliente', 'proveedor', 'empleado')),
@@ -36,7 +35,6 @@ CREATE TABLE Empleados (
     FOREIGN KEY (puesto_id) REFERENCES Puestos(id)
 );
 
-
 CREATE TABLE DatosEmpleados (
     empleado_id INT PRIMARY KEY,
     fecha_nacimiento DATE,
@@ -44,9 +42,6 @@ CREATE TABLE DatosEmpleados (
     email NVARCHAR(100) UNIQUE,
     FOREIGN KEY (empleado_id) REFERENCES Empleados(id)
 );
-
-
-
 
 CREATE TABLE Telefonos (
     id INT IDENTITY(1,1) PRIMARY KEY,
@@ -56,16 +51,12 @@ CREATE TABLE Telefonos (
     FOREIGN KEY (cliente_id) REFERENCES Clientes(id)
 );
 
-
-
-
 CREATE TABLE Proveedores (
     id INT IDENTITY(1,1) PRIMARY KEY,
     nombre NVARCHAR(100),
     direccion_id INT,
     FOREIGN KEY (direccion_id) REFERENCES Ubicaciones(id)
 );
-
 
 CREATE TABLE ContactoProveedores (
     id INT IDENTITY(1,1) PRIMARY KEY,
@@ -77,7 +68,6 @@ CREATE TABLE ContactoProveedores (
     FOREIGN KEY (proveedor_id) REFERENCES Proveedores(id)
 );
 
-
 CREATE TABLE EmpleadosProveedores (
     empleado_id INT,
     proveedor_id INT,
@@ -87,7 +77,6 @@ CREATE TABLE EmpleadosProveedores (
     FOREIGN KEY (proveedor_id) REFERENCES Proveedores(id)
 );
 
-
 CREATE TABLE CategoriasProductos (
     id INT IDENTITY(1,1) PRIMARY KEY,
     nombre NVARCHAR(100),
@@ -95,7 +84,6 @@ CREATE TABLE CategoriasProductos (
     categoria_padre_id INT,
     FOREIGN KEY (categoria_padre_id) REFERENCES CategoriasProductos(id)
 );
-
 
 CREATE TABLE Productos (
     id INT IDENTITY(1,1) PRIMARY KEY,
@@ -107,7 +95,6 @@ CREATE TABLE Productos (
     FOREIGN KEY (categoria_id) REFERENCES CategoriasProductos(id)
 );
 
-
 CREATE TABLE Pedidos (
     id INT IDENTITY(1,1) PRIMARY KEY,
     cliente_id INT,
@@ -115,7 +102,6 @@ CREATE TABLE Pedidos (
     estado NVARCHAR(20) CHECK (estado IN ('pendiente', 'procesando', 'enviado', 'entregado', 'cancelado')),
     FOREIGN KEY (cliente_id) REFERENCES Clientes(id)
 );
-
 
 CREATE TABLE DetallesPedido (
     id INT IDENTITY(1,1) PRIMARY KEY,
@@ -128,13 +114,14 @@ CREATE TABLE DetallesPedido (
     FOREIGN KEY (producto_id) REFERENCES Productos(id)
 );
 
-
 CREATE TABLE HistorialPedidos (
     id INT IDENTITY(1,1) PRIMARY KEY,
     pedido_id INT,
     fecha_cambio DATETIME,
     estado_anterior NVARCHAR(20) CHECK (estado_anterior IN ('pendiente', 'procesando', 'enviado', 'entregado', 'cancelado')),
     estado_nuevo NVARCHAR(20) CHECK (estado_nuevo IN ('pendiente', 'procesando', 'enviado', 'entregado', 'cancelado')),
-    usuario NVARCHAR(100),
+    usuario VARCHAR(80),
     FOREIGN KEY (pedido_id) REFERENCES Pedidos(id)
 );
+
+
