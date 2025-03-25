@@ -1,175 +1,112 @@
--- 1. Actualizar precio de productos por proveedor
-CREATE PROCEDURE ActualizarPreciosProveedor
-    @proveedor_id INT,
-    @porcentaje_aumento DECIMAL(5,2)
-AS
-BEGIN
-    UPDATE Productos
-    SET precio_base = precio_base * (1 + @porcentaje_aumento/100)
-    WHERE proveedor_id = @proveedor_id;
-END;
-GO
 
--- 2. Obtener dirección de cliente
-CREATE PROCEDURE ObtenerDireccionCliente
-    @cliente_id INT
-AS
+-- 1. Función que recibe una fecha y devuelve los días transcurridos
+DELIMITER $$
+CREATE FUNCTION CalcularDiasTranscurridos(fecha DATE)
+RETURNS INT DETERMINISTIC
 BEGIN
-    SELECT 
-        c.nombre AS cliente,
-        u.direccion,
-        u.ciudad,
-        u.estado,
-        u.codigo_postal,
-        u.pais
-    FROM Clientes c
-    INNER JOIN Ubicaciones u ON u.entidad_id = c.id AND u.entidad_tipo = 'cliente'
-    WHERE c.id = @cliente_id;
-END;
-GO
+    RETURN DATEDIFF(CURDATE(), fecha);
+END $$
+DELIMITER;
 
--- 3. Registrar nuevo pedido y detalles
-CREATE PROCEDURE RegistrarPedido
-    @cliente_id INT,
-    @fecha DATE,
-    @estado VARCHAR(20),
-    @detalles XML
-AS
+-- 2. Función para calcular el total con impuesto de un monto (impuesto fijo del 16%)
+DELIMITER $$
+CREATE FUNCTION CalcularTotalConImpuesto(monto DECIMAL(10,2))
+RETURNS DECIMAL(10,2) DETERMINISTIC
 BEGIN
-    DECLARE @pedido_id INT;
-    
-    -- Insertar pedido
-    INSERT INTO Pedidos (cliente_id, fecha, estado)
-    VALUES (@cliente_id, @fecha, @estado);
-    
-    SET @pedido_id = SCOPE_IDENTITY();
-    
-    -- Insertar detalles del pedido
-    INSERT INTO DetallesPedido (pedido_id, producto_id, cantidad, precio_unitario, subtotal)
-    SELECT 
-        @pedido_id,
-        T.c.value('producto_id[1]', 'INT'),
-        T.c.value('cantidad[1]', 'INT'),
-        T.c.value('precio_unitario[1]', 'DECIMAL(10,2)'),
-        T.c.value('cantidad[1]', 'INT') * T.c.value('precio_unitario[1]', 'DECIMAL(10,2)')
-    FROM @detalles.nodes('/detalles/detalle') T(c);
-END;
-GO
+    RETURN monto * 1.16;
+END $$
+DELIMITER;
 
--- 4. Calcular total de ventas por cliente
-CREATE PROCEDURE CalcularTotalVentasCliente
-    @cliente_id INT
-AS
+-- 3. Función que devuelve el total (cantidad) de pedidos de un cliente específico
+DELIMITER $$
+CREATE FUNCTION TotalPedidosCliente(clienteID INT)
+RETURNS INT DETERMINISTIC
 BEGIN
-    SELECT 
-        c.nombre AS cliente,
-        COUNT(p.id) AS total_pedidos,
-        SUM(dp.subtotal) AS total_ventas,
-        AVG(dp.subtotal) AS promedio_por_pedido
-    FROM Clientes c
-    INNER JOIN Pedidos p ON c.id = p.cliente_id
-    INNER JOIN DetallesPedido dp ON p.id = dp.pedido_id
-    WHERE c.id = @cliente_id
-    GROUP BY c.id, c.nombre;
-END;
-GO
+    DECLARE totalPedidos INT;
+    SELECT COUNT(*) INTO totalPedidos FROM Pedidos WHERE cliente_id = clienteID;
+    RETURN totalPedidos;
+END $$
+DELIMITER;
 
--- 5. Obtener empleados por puesto
-CREATE PROCEDURE ObtenerEmpleadosPorPuesto
-    @puesto_id INT
-AS
+-- 4. Función para aplicar un descuento a un producto
+DELIMITER $$
+CREATE FUNCTION AplicarDescuentoProducto(precio DECIMAL(10,2), descuento DECIMAL(5,2))
+RETURNS DECIMAL(10,2) DETERMINISTIC
 BEGIN
-    SELECT 
-        e.nombre AS empleado,
-        p.nombre AS puesto,
-        e.fecha_contratacion,
-        de.email
-    FROM Empleados e
-    INNER JOIN Puestos p ON e.puesto_id = p.id
-    LEFT JOIN DatosEmpleados de ON e.id = de.empleado_id
-    WHERE e.puesto_id = @puesto_id
-    ORDER BY e.nombre;
-END;
-GO
+    RETURN precio * (1 - (descuento / 100));
+END $$
+DELIMITER;
 
--- 6. Actualizar salario por puesto
-CREATE PROCEDURE ActualizarSalarioPuesto
-    @puesto_id INT,
-    @porcentaje_aumento DECIMAL(5,2)
-AS
+-- 5. Función que indica si un cliente tiene dirección registrada
+DELIMITER $$
+CREATE FUNCTION ClienteTieneDireccion(clienteID INT)
+RETURNS TINYINT DETERMINISTIC
 BEGIN
-    UPDATE Puestos
-    SET salario_base = salario_base * (1 + @porcentaje_aumento/100)
-    WHERE id = @puesto_id;
-END;
-GO
+    IF EXISTS (SELECT 1 FROM Ubicaciones WHERE entidad_tipo = 'Cliente' AND entidad_id = clienteID) THEN
+        RETURN 1;
+    ELSE
+        RETURN 0;
+    END IF;
+END $$
+DELIMITER;
 
--- 7. Listar pedidos entre fechas
-CREATE PROCEDURE ListarPedidosPorFecha
-    @fecha_inicio DATE,
-    @fecha_fin DATE
-AS
+-- 6. Función que devuelve el salario anual de un empleado
+DELIMITER $$
+CREATE FUNCTION SalarioAnualEmpleado(empleadoID INT)
+RETURNS DECIMAL(10,2) DETERMINISTIC
 BEGIN
-    SELECT 
-        p.id AS pedido_id,
-        p.fecha,
-        p.estado,
-        c.nombre AS cliente,
-        SUM(dp.subtotal) AS total
-    FROM Pedidos p
-    INNER JOIN Clientes c ON p.cliente_id = c.id
-    INNER JOIN DetallesPedido dp ON p.id = dp.pedido_id
-    WHERE p.fecha BETWEEN @fecha_inicio AND @fecha_fin
-    GROUP BY p.id, p.fecha, p.estado, c.nombre
-    ORDER BY p.fecha DESC;
-END;
-GO
+    DECLARE salario DECIMAL(10,2);
+    SELECT p.salario INTO salario
+    FROM Empleados e JOIN Puestos p ON e.puesto_id = p.id
+    WHERE e.id = empleadoID;
+    RETURN salario * 12;
+END $$
+DELIMITER;
 
--- 8. Aplicar descuento a categoría
-CREATE PROCEDURE AplicarDescuentoCategoria
-    @categoria_id INT,
-    @porcentaje_descuento DECIMAL(5,2)
-AS
+-- 7. Función para calcular el total de ventas de un tipo de producto (por categoría)
+DELIMITER $$
+CREATE FUNCTION TotalVentasPorCategoria(categoriaID INT)
+RETURNS DECIMAL(10,2) DETERMINISTIC
 BEGIN
-    UPDATE Productos
-    SET precio_base = precio_base * (1 - @porcentaje_descuento/100)
-    WHERE categoria_id = @categoria_id;
-END;
-GO
+    DECLARE totalVentas DECIMAL(10,2);
+    SELECT COALESCE(SUM(cantidad * precio), 0) INTO totalVentas
+    FROM DetallesPedido dp JOIN Productos p ON dp.producto_id = p.id
+    WHERE p.categoria_id = categoriaID;
+    RETURN totalVentas;
+END $$
+DELIMITER;
 
--- 9. Listar proveedores por tipo de producto
-CREATE PROCEDURE ListarProveedoresPorCategoria
-    @categoria_id INT
-AS
+-- 8. Función para devolver el nombre de un cliente por ID
+DELIMITER $$
+CREATE FUNCTION ObtenerNombreCliente(clienteID INT)
+RETURNS VARCHAR(100) DETERMINISTIC
 BEGIN
-    SELECT DISTINCT
-        p.nombre AS proveedor,
-        cp.nombre AS categoria,
-        COUNT(pr.id) AS total_productos
-    FROM Proveedores p
-    INNER JOIN Productos pr ON p.id = pr.proveedor_id
-    INNER JOIN CategoriasProductos cp ON pr.categoria_id = cp.id
-    WHERE pr.categoria_id = @categoria_id
-    GROUP BY p.id, p.nombre, cp.nombre
-    ORDER BY p.nombre;
-END;
-GO
+    DECLARE nombreCliente VARCHAR(100);
+    SELECT nombre INTO nombreCliente FROM Clientes WHERE id = clienteID;
+    RETURN nombreCliente;
+END $$
+DELIMITER;
 
--- 10. Obtener pedido de mayor valor
-CREATE PROCEDURE ObtenerPedidoMayorValor
-AS
+-- 9. Función que recibe el ID de un pedido y devuelve su total
+DELIMITER $$
+CREATE FUNCTION ObtenerTotalPedido(pedidoID INT)
+RETURNS DECIMAL(10,2) DETERMINISTIC
 BEGIN
-    SELECT TOP 1
-        p.id AS pedido_id,
-        p.fecha,
-        p.estado,
-        c.nombre AS cliente,
-        SUM(dp.subtotal) AS total,
-        COUNT(dp.id) AS total_productos
-    FROM Pedidos p
-    INNER JOIN Clientes c ON p.cliente_id = c.id
-    INNER JOIN DetallesPedido dp ON p.id = dp.pedido_id
-    GROUP BY p.id, p.fecha, p.estado, c.nombre
-    ORDER BY SUM(dp.subtotal) DESC;
-END;
-GO 
+    DECLARE total DECIMAL(10,2);
+    SELECT total INTO total FROM Pedidos WHERE id = pedidoID;
+    RETURN total;
+END $$
+DELIMITER;
+
+-- 10. Función que indica si un producto está en inventario (se asume que está si existe en la tabla Productos)
+DELIMITER $$
+CREATE FUNCTION ProductoEnInventario(productoID INT)
+RETURNS TINYINT DETERMINISTIC
+BEGIN
+    IF EXISTS (SELECT 1 FROM Productos WHERE id = productoID) THEN
+        RETURN 1;
+    ELSE
+        RETURN 0;
+    END IF;
+END $$
+DELIMITER ;

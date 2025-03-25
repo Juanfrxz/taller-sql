@@ -1,145 +1,88 @@
-# Sistema de Gestión de Ventas y Pedidos
+# Proyecto de Base de Datos "vtaszfs" 🚀
 
-Este proyecto implementa un sistema de gestión de ventas y pedidos utilizando SQL Server. El sistema incluye la creación de tablas, procedimientos almacenados, funciones, triggers y consultas complejas.
+Este repositorio contiene la solución completa para el proyecto de base de datos "vtaszfs". El proyecto incluye:
 
-## Estructura del Proyecto
+- Comandos DDL para la creación de la base de datos y tablas. 🏗️
+- Comandos DML para la inserción de datos de prueba. 🍀
+- Consultas SQL desarrolladas, cada una con su solución y prueba.
 
-El proyecto está organizado en los siguientes archivos:
+## Archivos del Repositorio
 
-1. `db.sql` - Scripts DDL para la creación de la base de datos y tablas
-2. `consultas_simples.sql` - Consultas básicas de selección y filtrado
-3. `consultas_multitabla.sql` - Consultas con JOINs y operaciones entre tablas
-4. `subconsultas.sql` - Consultas utilizando subconsultas
-5. `procedimientos_almacenados.sql` - Procedimientos almacenados
-6. `funciones.sql` - Funciones definidas por el usuario
-7. `triggers.sql` - Triggers para automatización y validación
+- **db.sql**: (DDL) Contiene los comandos para la creación de la base de datos y todas las tablas principales.
+- **dml.sql**: (DML) Incluye comandos para la inserción de datos de prueba en las tablas.
+- **consultas_simples.sql**: Contiene 10 consultas simples.
+- **subconsultas.sql**: Contiene 10 subconsultas que resuelven problemas complejos.
+- **procedimientos_almacenados.sql**: Incluye 10 procedimientos almacenados para operaciones específicas.
+- **triggers.sql**: Contiene 10 triggers que automatizan diversas acciones en la base de datos.
+- **funciones.sql**: Funciones definidas por el usuario para cálculos personalizados y validaciones.
 
-## Estructura de la Base de Datos
+## Descripción de las Consultas y Pruebas
 
-### Tablas Principales
+### Consultas Simples
+1. **Productos con precio > $50**: 
+   - **Solución:** Filtra los productos cuyo precio supera los $50.
+   - **Prueba:** Se insertaron productos con precios variados y se verificó que solo se muestren aquellos que cumplen la condición.
 
-- **Puestos**: Almacena información sobre los puestos de trabajo
-- **Empleados**: Registra información de los empleados
-- **Clientes**: Gestiona la información de los clientes
-- **Productos**: Catálogo de productos disponibles
-- **Pedidos**: Registra las órdenes de compra
-- **DetallesPedido**: Detalles de los productos en cada pedido
+2. **Clientes por ciudad**: 
+   - **Solución:** Recupera clientes que tienen registrada una ubicación en una ciudad específica.
+   - **Prueba:** Se probó asociando múltiples clientes a diferentes ciudades y validando el filtrado.
 
-### Tablas de Soporte
+3. **Empleados recientes**: 
+   - **Solución:** Muestra a los empleados contratados en los últimos 2 años.
+   - **Prueba:** Se insertaron registros con fechas de contratación diversas para validar la consulta.
 
-- **DatosEmpleados**: Información adicional de empleados
-- **Telefonos**: Gestión de números telefónicos
-- **Ubicaciones**: Direcciones de clientes, proveedores y empleados
-- **Proveedores**: Información de proveedores
-- **CategoriasProductos**: Categorización de productos
-- **HistorialPedidos**: Seguimiento de cambios en pedidos
+4. **Proveedores con más de 5 productos**: 
+   - **Solución:** Agrupa a los proveedores y muestra aquellos que suministran más de 5 productos.
+   - **Prueba:** Se probaron casos con proveedores que tienen distintos volúmenes de productos.
 
-## Consultas y Soluciones
+5. **Clientes sin dirección registrada**: 
+   - **Solución:** Utiliza LEFT JOIN para identificar clientes sin una dirección asignada.
+   - **Prueba:** Se verificó que los clientes sin dirección en la tabla de ubicaciones aparezcan correctamente.
 
-### 1. Consultas Simples
+6. **Total de ventas por cliente**: 
+   - **Solución:** Suma el total de ventas de los pedidos realizados por cada cliente.
+   - **Prueba:** Se realizaron sumas y se compararon los resultados esperados con los totales de la tabla de pedidos.
 
-```sql
--- Ejemplo: Listar todos los clientes
-SELECT nombre, email 
-FROM Clientes 
-ORDER BY nombre;
-```
+7. **Salario promedio de empleados**: 
+   - **Solución:** Calcula el salario promedio uniendo las tablas de Empleados y Puestos.
+   - **Prueba:** Se comprobó el cálculo promediando salarios registrados en la base de datos.
 
-### 2. Consultas Multitabla
+8. **Tipos de productos**: 
+   - **Solución:** Consulta la tabla de categorías para listar los diferentes tipos de productos disponibles.
+   - **Prueba:** Se verificó la salida comparando los tipos de productos disponibles en la tabla de categorías.
 
-```sql
--- Ejemplo: Obtener pedidos con información del cliente
-SELECT 
-    p.id AS pedido_id,
-    p.fecha,
-    c.nombre AS cliente
-FROM Pedidos p
-INNER JOIN Clientes c ON p.cliente_id = c.id;
-```
+9. **Top 3 productos más caros**: 
+   - **Solución:** Ordena los productos por precio y limita la salida a los 3 productos más costosos.
+   - **Prueba:** Se insertaron productos con precios altos y se comprobó que solo se muestren los tres primeros.
 
-### 3. Subconsultas
+10. **Cliente con mayor número de pedidos**: 
+    - **Solución:** Ordena los clientes por la cantidad de pedidos y selecciona el que tiene el mayor número.
+    - **Prueba:** Se validó contando el número de pedidos por cliente y comparando con el valor máximo.
 
-```sql
--- Ejemplo: Encontrar productos más caros que el promedio
-SELECT nombre, precio_base
-FROM Productos
-WHERE precio_base > (SELECT AVG(precio_base) FROM Productos);
-```
+### Subconsultas
+- **Producto más caro por categoría**: Utiliza una subconsulta correlacionada para encontrar el producto más caro en cada categoría.
+- **Cliente con mayor acumulado en pedidos**: Emplea una subconsulta anidada para determinar el cliente con el mayor total acumulado en pedidos.
+- **Empleados con salario superior/inferior al promedio**: Filtra empleados según su salario comparado con la media.
+- (Otros ejemplos de subconsultas se documentan de forma similar.)
 
-### 4. Procedimientos Almacenados
+### Procedimientos Almacenados
+- **ActualizarPreciosProveedor**: Actualiza los precios de productos de un proveedor aplicando un porcentaje de aumento.
+- **ObtenerDireccionCliente**: Recupera la dirección del cliente a partir de su ID.
+- **RegistrarPedido**: Inserta un nuevo pedido y sus detalles correspondientes.
+- **CalcularTotalVentasCliente**: Calcula el total de ventas y el promedio de los pedidos realizados por un cliente.
+- (Otros procedimientos se describen en detalle en el archivo.)
 
-```sql
--- Ejemplo: Actualizar precios de productos
-EXEC ActualizarPreciosProveedor @proveedor_id = 1, @porcentaje_aumento = 10;
-```
+### Triggers
+- **HistorialSalarios**: Registra cada cambio en el salario de los empleados.
+- **No borrar productos con pedidos activos**: Previene la eliminación de productos que tienen pedidos asociados.
+- **Actualización de inventario**: Ajusta el stock tras la inserción de un nuevo pedido.
+- (Otros triggers se documentan de forma similar.)
 
-### 5. Funciones
+## Cómo Probar el Proyecto 🧪
 
-```sql
--- Ejemplo: Calcular días transcurridos
-SELECT dbo.CalcularDiasTranscurridos('2024-01-01');
-```
-
-### 6. Triggers
-
-Los triggers implementados incluyen:
-- Registro de cambios de salario
-- Validación de eliminación de productos
-- Seguimiento de cambios en pedidos
-- Actualización automática de inventario
-- Validación de precios mínimos
-
-## Pruebas y Ejemplos
-
-### Inserción de Datos de Prueba
-
-```sql
--- Insertar un nuevo puesto
-INSERT INTO Puestos (nombre, descripcion, salario_base)
-VALUES ('Vendedor', 'Vendedor de tienda', 25000);
-
--- Insertar un nuevo empleado
-INSERT INTO Empleados (nombre, puesto_id, fecha_contratacion)
-VALUES ('Juan Pérez', 1, GETDATE());
-
--- Insertar un nuevo cliente
-INSERT INTO Clientes (nombre, email)
-VALUES ('María García', 'maria@email.com');
-
--- Insertar un nuevo producto
-INSERT INTO Productos (nombre, precio_base, proveedor_id, categoria_id)
-VALUES ('Laptop HP', 1200.00, 1, 1);
-```
-
-### Pruebas de Consultas
-
-```sql
--- Prueba de consulta multitabla
-SELECT 
-    p.nombre AS producto,
-    c.nombre AS categoria,
-    pr.nombre AS proveedor
-FROM Productos p
-INNER JOIN CategoriasProductos c ON p.categoria_id = c.id
-INNER JOIN Proveedores pr ON p.proveedor_id = pr.id;
-
--- Prueba de procedimiento almacenado
-EXEC ObtenerDireccionCliente @cliente_id = 1;
-
--- Prueba de función
-SELECT dbo.CalcularTotalConImpuesto(100.00, 19.00);
-```
-
-## Requisitos del Sistema
-
-- SQL Server 2019 o superior
-- Permisos suficientes para crear bases de datos y objetos
-- Espacio en disco para almacenar la base de datos
-
-## Instalación
-
-1. Ejecutar el script `db.sql` para crear la base de datos y las tablas
-2. Ejecutar los scripts de procedimientos almacenados, funciones y triggers
-3. Insertar datos de prueba según sea necesario
-
-
+1. Ejecuta el archivo **db.sql** para crear la base de datos y las tablas. 🚀
+2. Ejecuta el archivo **dml.sql** para poblar las tablas con datos de prueba. 🎉
+3. Ejecuta las consultas en **consultas_simples.sql** y **subconsultas.sql** para validar sus soluciones y comprobar los resultados.
+4. Prueba los **procedimientos almacenados** ejecutándolos y verificando que realicen las operaciones correctas.
+5. Realiza acciones en las tablas para activar los **triggers** y observa cómo se registran los cambios automáticos.
+6. Utiliza las **funciones** (en funciones.sql) para realizar cálculos y validaciones personalizadas.

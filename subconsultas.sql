@@ -1,142 +1,69 @@
--- 1. Producto más caro por categoría
-SELECT 
-    cp.nombre AS categoria,
-    p.nombre AS producto,
-    p.precio_base
+-- 1. Consultar el producto más caro en cada categoría
+SELECT p.id AS producto_id, p.nombre AS producto, p.precio, p.categoria_id
 FROM Productos p
-INNER JOIN CategoriasProductos cp ON p.categoria_id = cp.id
-WHERE p.precio_base = (
-    SELECT MAX(p2.precio_base)
-    FROM Productos p2
-    WHERE p2.categoria_id = p.categoria_id
-)
-ORDER BY cp.nombre;
+WHERE p.precio = (SELECT MAX(p2.precio)
+                  FROM Productos p2
+                  WHERE p2.categoria_id = p.categoria_id);
 
--- 2. Cliente con mayor total en pedidos
-SELECT 
-    c.nombre AS cliente,
-    SUM(dp.subtotal) AS total_gastado
+-- 2. Encontrar el cliente con mayor total en pedidos
+SELECT c.id AS cliente_id, c.nombre AS cliente, c.email,
+       SUM(p.total) AS total_pedidos
 FROM Clientes c
 INNER JOIN Pedidos p ON c.id = p.cliente_id
-INNER JOIN DetallesPedido dp ON p.id = dp.pedido_id
-GROUP BY c.id, c.nombre
-HAVING SUM(dp.subtotal) = (
-    SELECT MAX(total)
-    FROM (
-        SELECT SUM(dp2.subtotal) AS total
-        FROM Clientes c2
-        INNER JOIN Pedidos p2 ON c2.id = p2.cliente_id
-        INNER JOIN DetallesPedido dp2 ON p2.id = dp2.pedido_id
-        GROUP BY c2.id
-    ) AS totales
-);
+GROUP BY c.id, c.nombre, c.email
+HAVING SUM(p.total) = (SELECT MAX(total_sum)
+                       FROM (SELECT SUM(ped.total) AS total_sum
+                             FROM Pedidos ped
+                             GROUP BY ped.cliente_id) t);
 
--- 3. Empleados con salario superior al promedio
-SELECT 
-    e.nombre AS empleado,
-    p.nombre AS puesto,
-    p.salario_base
+-- 3. Listar empleados que ganan más que el salario promedio
+SELECT e.id AS empleado_id, e.nombre AS empleado, pu.salario
 FROM Empleados e
-INNER JOIN Puestos p ON e.puesto_id = p.id
-WHERE p.salario_base > (
-    SELECT AVG(salario_base)
-    FROM Puestos
-)
-ORDER BY p.salario_base DESC;
+INNER JOIN Puestos pu ON e.puesto_id = pu.id
+WHERE pu.salario > (SELECT AVG(salario) FROM Puestos);
 
--- 4. Productos pedidos más de 5 veces
-SELECT 
-    p.nombre AS producto,
-    COUNT(dp.id) AS veces_pedido
+-- 4. Consultar productos que han sido pedidos más de 5 veces
+SELECT p.id AS producto_id, p.nombre AS producto, COUNT(dp.id) AS veces_pedido
 FROM Productos p
 INNER JOIN DetallesPedido dp ON p.id = dp.producto_id
 GROUP BY p.id, p.nombre
-HAVING COUNT(dp.id) > 5
-ORDER BY veces_pedido DESC;
+HAVING COUNT(dp.id) > 5;
 
--- 5. Pedidos con total superior al promedio
-SELECT 
-    p.id AS pedido_id,
-    p.fecha,
-    SUM(dp.subtotal) AS total
+-- 5. Listar pedidos cuyo total es mayor al promedio de todos los pedidos
+SELECT p.id AS pedido_id, p.cliente_id, p.fecha, p.total
 FROM Pedidos p
-INNER JOIN DetallesPedido dp ON p.id = dp.pedido_id
-GROUP BY p.id, p.fecha
-HAVING SUM(dp.subtotal) > (
-    SELECT AVG(total)
-    FROM (
-        SELECT SUM(dp2.subtotal) AS total
-        FROM Pedidos p2
-        INNER JOIN DetallesPedido dp2 ON p2.id = dp2.pedido_id
-        GROUP BY p2.id
-    ) AS totales
-)
-ORDER BY total DESC;
+WHERE p.total > (SELECT AVG(total) FROM Pedidos);
 
--- 6. Top 3 proveedores con más productos
-SELECT TOP 3
-    p.nombre AS proveedor,
-    COUNT(pr.id) AS total_productos
-FROM Proveedores p
-INNER JOIN Productos pr ON p.id = pr.proveedor_id
-GROUP BY p.id, p.nombre
+-- 6. Seleccionar los 3 proveedores con más productos
+SELECT TOP 3 pr.id AS proveedor_id, pr.nombre AS proveedor,
+       (SELECT COUNT(prd.id) FROM Productos prd WHERE prd.proveedor_id = pr.id) AS total_productos
+FROM Proveedores pr
 ORDER BY total_productos DESC;
 
--- 7. Productos con precio superior al promedio de su categoría
-SELECT 
-    p.nombre AS producto,
-    p.precio_base,
-    cp.nombre AS categoria
+-- 7. Consultar productos con precio superior al promedio en su tipo
+SELECT p.id AS producto_id, p.nombre AS producto, p.precio, p.categoria_id
 FROM Productos p
-INNER JOIN CategoriasProductos cp ON p.categoria_id = cp.id
-WHERE p.precio_base > (
-    SELECT AVG(p2.precio_base)
-    FROM Productos p2
-    WHERE p2.categoria_id = p.categoria_id
-)
-ORDER BY cp.nombre, p.precio_base DESC;
+WHERE p.precio > (SELECT AVG(prod2.precio)
+                  FROM Productos prod2
+                  WHERE prod2.categoria_id = p.categoria_id);
 
--- 8. Clientes con más pedidos que la media
-SELECT 
-    c.nombre AS cliente,
-    COUNT(p.id) AS total_pedidos
+-- 8. Mostrar clientes que han realizado más pedidos que la media
+SELECT c.id AS cliente_id, c.nombre AS cliente, c.email,
+       (SELECT COUNT(ped.id) FROM Pedidos ped WHERE ped.cliente_id = c.id) AS total_pedidos
 FROM Clientes c
-INNER JOIN Pedidos p ON c.id = p.cliente_id
-GROUP BY c.id, c.nombre
-HAVING COUNT(p.id) > (
-    SELECT AVG(total)
-    FROM (
-        SELECT COUNT(p2.id) AS total
-        FROM Clientes c2
-        INNER JOIN Pedidos p2 ON c2.id = p2.cliente_id
-        GROUP BY c2.id
-    ) AS totales
-)
-ORDER BY total_pedidos DESC;
+WHERE (SELECT COUNT(ped.id) FROM Pedidos ped WHERE ped.cliente_id = c.id) >
+      (SELECT AVG(cant) FROM (SELECT COUNT(ped2.id) AS cant FROM Pedidos ped2 GROUP BY ped2.cliente_id) sub);
 
--- 9. Productos con precio superior al promedio general
-SELECT 
-    p.nombre AS producto,
-    p.precio_base,
-    cp.nombre AS categoria
+-- 9. Encontrar productos cuyo precio es mayor que el promedio de todos los productos
+SELECT p.id AS producto_id, p.nombre AS producto, p.precio, p.categoria_id
 FROM Productos p
-INNER JOIN CategoriasProductos cp ON p.categoria_id = cp.id
-WHERE p.precio_base > (
-    SELECT AVG(precio_base)
-    FROM Productos
-)
-ORDER BY p.precio_base DESC;
+WHERE p.precio > (SELECT AVG(precio) FROM Productos);
 
--- 10. Empleados con salario menor al promedio de su puesto
-SELECT 
-    e.nombre AS empleado,
-    p.nombre AS puesto,
-    p.salario_base
+-- 10. Mostrar empleados cuyo salario es menor al promedio del departamento
+SELECT e.id AS empleado_id, e.nombre AS empleado, pu.salario, pu.puesto
 FROM Empleados e
-INNER JOIN Puestos p ON e.puesto_id = p.id
-WHERE p.salario_base < (
-    SELECT AVG(p2.salario_base)
-    FROM Puestos p2
-    WHERE p2.id = p.id
-)
-ORDER BY p.nombre, p.salario_base; 
+INNER JOIN Puestos pu ON e.puesto_id = pu.id
+WHERE pu.salario < (SELECT AVG(pu2.salario)
+                    FROM Empleados e2
+                    INNER JOIN Puestos pu2 ON e2.puesto_id = pu2.id
+                    WHERE e2.puesto_id = pu.id); 

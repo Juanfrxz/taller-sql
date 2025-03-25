@@ -1,155 +1,95 @@
--- 1. Función para calcular días transcurridos
-CREATE FUNCTION CalcularDiasTranscurridos
-(
-    @fecha DATE
-)
-RETURNS INT
-AS
-BEGIN
-    RETURN DATEDIFF(DAY, @fecha, GETDATE());
-END;
-GO
+DELIMITER $$
 
--- 2. Función para calcular total con impuesto
-CREATE FUNCTION CalcularTotalConImpuesto
-(
-    @monto DECIMAL(10,2),
-    @impuesto DECIMAL(5,2)
-)
-RETURNS DECIMAL(10,2)
-AS
+-- 1. Función que recibe una fecha y devuelve los días transcurridos
+CREATE FUNCTION CalcularDiasTranscurridos(fecha DATE)
+RETURNS INT DETERMINISTIC
 BEGIN
-    RETURN @monto * (1 + @impuesto/100);
-END;
-GO
+    RETURN DATEDIFF(CURDATE(), fecha);
+END $$
 
--- 3. Función para contar pedidos de un cliente
-CREATE FUNCTION ContarPedidosCliente
-(
-    @cliente_id INT
-)
-RETURNS INT
-AS
+-- 2. Función para calcular el total con impuesto de un monto (impuesto fijo del 16%)
+CREATE FUNCTION CalcularTotalConImpuesto(monto DECIMAL(10,2))
+RETURNS DECIMAL(10,2) DETERMINISTIC
 BEGIN
-    DECLARE @total INT;
-    SELECT @total = COUNT(*)
-    FROM Pedidos
-    WHERE cliente_id = @cliente_id;
-    RETURN @total;
-END;
-GO
+    RETURN monto * 1.16;
+END $$
 
--- 4. Función para aplicar descuento a producto
-CREATE FUNCTION AplicarDescuentoProducto
-(
-    @producto_id INT,
-    @descuento DECIMAL(5,2)
-)
-RETURNS DECIMAL(10,2)
-AS
+-- 3. Función que devuelve el total (cantidad) de pedidos de un cliente específico
+CREATE FUNCTION TotalPedidosCliente(clienteID INT)
+RETURNS INT DETERMINISTIC
 BEGIN
-    DECLARE @precio_final DECIMAL(10,2);
-    SELECT @precio_final = precio_base * (1 - @descuento/100)
-    FROM Productos
-    WHERE id = @producto_id;
-    RETURN @precio_final;
-END;
-GO
+    DECLARE totalPedidos INT;
+    SELECT COUNT(*) INTO totalPedidos FROM Pedidos WHERE cliente_id = clienteID;
+    RETURN totalPedidos;
+END $$
 
--- 5. Función para verificar dirección de cliente
-CREATE FUNCTION TieneDireccionRegistrada
-(
-    @cliente_id INT
-)
-RETURNS BIT
-AS
+-- 4. Función para aplicar un descuento a un producto
+CREATE FUNCTION AplicarDescuentoProducto(precio DECIMAL(10,2), descuento DECIMAL(5,2))
+RETURNS DECIMAL(10,2) DETERMINISTIC
 BEGIN
-    DECLARE @tiene_direccion BIT;
-    SELECT @tiene_direccion = CASE WHEN COUNT(*) > 0 THEN 1 ELSE 0 END
-    FROM Ubicaciones
-    WHERE entidad_id = @cliente_id AND entidad_tipo = 'cliente';
-    RETURN @tiene_direccion;
-END;
-GO
+    RETURN precio * (1 - (descuento / 100));
+END $$
 
--- 6. Función para calcular salario anual
-CREATE FUNCTION CalcularSalarioAnual
-(
-    @empleado_id INT
-)
-RETURNS DECIMAL(10,2)
-AS
+-- 5. Función que indica si un cliente tiene dirección registrada
+CREATE FUNCTION ClienteTieneDireccion(clienteID INT)
+RETURNS TINYINT DETERMINISTIC
 BEGIN
-    DECLARE @salario_anual DECIMAL(10,2);
-    SELECT @salario_anual = p.salario_base * 12
-    FROM Empleados e
-    INNER JOIN Puestos p ON e.puesto_id = p.id
-    WHERE e.id = @empleado_id;
-    RETURN @salario_anual;
-END;
-GO
+    IF EXISTS (SELECT 1 FROM Ubicaciones WHERE entidad_tipo = 'Cliente' AND entidad_id = clienteID) THEN
+        RETURN 1;
+    ELSE
+        RETURN 0;
+    END IF;
+END $$
 
--- 7. Función para calcular ventas por tipo de producto
-CREATE FUNCTION CalcularVentasPorCategoria
-(
-    @categoria_id INT
-)
-RETURNS DECIMAL(10,2)
-AS
+-- 6. Función que devuelve el salario anual de un empleado
+CREATE FUNCTION SalarioAnualEmpleado(empleadoID INT)
+RETURNS DECIMAL(10,2) DETERMINISTIC
 BEGIN
-    DECLARE @total_ventas DECIMAL(10,2);
-    SELECT @total_ventas = ISNULL(SUM(dp.subtotal), 0)
-    FROM Productos p
-    INNER JOIN DetallesPedido dp ON p.id = dp.producto_id
-    WHERE p.categoria_id = @categoria_id;
-    RETURN @total_ventas;
-END;
-GO
+    DECLARE salario DECIMAL(10,2);
+    SELECT p.salario INTO salario
+    FROM Empleados e JOIN Puestos p ON e.puesto_id = p.id
+    WHERE e.id = empleadoID;
+    RETURN salario * 12;
+END $$
 
--- 8. Función para obtener nombre de cliente
-CREATE FUNCTION ObtenerNombreCliente
-(
-    @cliente_id INT
-)
-RETURNS NVARCHAR(100)
-AS
+-- 7. Función para calcular el total de ventas de un tipo de producto (por categoría)
+CREATE FUNCTION TotalVentasPorCategoria(categoriaID INT)
+RETURNS DECIMAL(10,2) DETERMINISTIC
 BEGIN
-    DECLARE @nombre NVARCHAR(100);
-    SELECT @nombre = nombre
-    FROM Clientes
-    WHERE id = @cliente_id;
-    RETURN @nombre;
-END;
-GO
+    DECLARE totalVentas DECIMAL(10,2);
+    SELECT COALESCE(SUM(cantidad * precio), 0) INTO totalVentas
+    FROM DetallesPedido dp JOIN Productos p ON dp.producto_id = p.id
+    WHERE p.categoria_id = categoriaID;
+    RETURN totalVentas;
+END $$
 
--- 9. Función para calcular total de pedido
-CREATE FUNCTION CalcularTotalPedido
-(
-    @pedido_id INT
-)
-RETURNS DECIMAL(10,2)
-AS
+-- 8. Función para devolver el nombre de un cliente por ID
+CREATE FUNCTION ObtenerNombreCliente(clienteID INT)
+RETURNS VARCHAR(100) DETERMINISTIC
 BEGIN
-    DECLARE @total DECIMAL(10,2);
-    SELECT @total = ISNULL(SUM(subtotal), 0)
-    FROM DetallesPedido
-    WHERE pedido_id = @pedido_id;
-    RETURN @total;
-END;
-GO
+    DECLARE nombreCliente VARCHAR(100);
+    SELECT nombre INTO nombreCliente FROM Clientes WHERE id = clienteID;
+    RETURN nombreCliente;
+END $$
 
--- 10. Función para verificar inventario de producto
-CREATE FUNCTION ProductoEnInventario
-(
-    @producto_id INT
-)
-RETURNS BIT
-AS
+-- 9. Función que recibe el ID de un pedido y devuelve su total
+CREATE FUNCTION ObtenerTotalPedido(pedidoID INT)
+RETURNS DECIMAL(10,2) DETERMINISTIC
 BEGIN
-    DECLARE @en_inventario BIT;
-    SELECT @en_inventario = CASE WHEN COUNT(*) > 0 THEN 1 ELSE 0 END
-    FROM DetallesPedido
-    WHERE producto_id = @producto_id;
-    RETURN @en_inventario;
-END;
-GO 
+    DECLARE total DECIMAL(10,2);
+    SELECT total INTO total FROM Pedidos WHERE id = pedidoID;
+    RETURN total;
+END $$
+
+-- 10. Función que indica si un producto está en inventario (se asume que está si existe en la tabla Productos)
+CREATE FUNCTION ProductoEnInventario(productoID INT)
+RETURNS TINYINT DETERMINISTIC
+BEGIN
+    IF EXISTS (SELECT 1 FROM Productos WHERE id = productoID) THEN
+        RETURN 1;
+    ELSE
+        RETURN 0;
+    END IF;
+END $$
+
+DELIMITER ; 

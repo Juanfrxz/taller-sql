@@ -1,94 +1,72 @@
--- Creación de la base de datos
-CREATE DATABASE tallersqljuan;
+-- Crear la base de datos
+CREATE DATABASE vtaszfs;
 USE vtaszfs;
 
-CREATE TABLE Puestos (
-    id INT IDENTITY(1,1) PRIMARY KEY,
-    nombre NVARCHAR(100),
-    descripcion NVARCHAR(MAX),
-    salario_base DECIMAL(10, 2)
+CREATE TABLE Clientes (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    nombre VARCHAR(100),
+    email VARCHAR(100) UNIQUE
 );
 
-CREATE TABLE Clientes (
-    id INT IDENTITY(1,1) PRIMARY KEY,
-    nombre NVARCHAR(100),
-    email NVARCHAR(100) UNIQUE,
-    fecha_registro DATE DEFAULT GETDATE()
+CREATE TABLE Proveedores (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    nombre VARCHAR(100)
 );
 
 CREATE TABLE Ubicaciones (
-    id INT IDENTITY(1,1) PRIMARY KEY,
-    entidad_tipo NVARCHAR(20) CHECK (entidad_tipo IN ('cliente', 'proveedor', 'empleado')),
-    entidad_id INT,
-    direccion NVARCHAR(255),
-    ciudad NVARCHAR(100),
-    estado NVARCHAR(50),
-    codigo_postal NVARCHAR(10),
-    pais NVARCHAR(50)
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    entidad_tipo ENUM('Cliente', 'Proveedor', 'Empleado') NOT NULL,
+    entidad_id INT NOT NULL,
+    direccion VARCHAR(255),
+    ciudad VARCHAR(100),
+    estado VARCHAR(50),
+    codigo_postal VARCHAR(10),
+    pais VARCHAR(50),
+    UNIQUE KEY uk_entidad (entidad_tipo, entidad_id)
+);
+
+CREATE TABLE Puestos (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    puesto VARCHAR(50),
+    salario DECIMAL(10,2)
 );
 
 CREATE TABLE Empleados (
-    id INT IDENTITY(1,1) PRIMARY KEY,
-    nombre NVARCHAR(100),
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    nombre VARCHAR(100),
     puesto_id INT,
     fecha_contratacion DATE,
     FOREIGN KEY (puesto_id) REFERENCES Puestos(id)
 );
 
-CREATE TABLE DatosEmpleados (
-    empleado_id INT PRIMARY KEY,
-    fecha_nacimiento DATE,
-    genero CHAR(1),
-    email NVARCHAR(100) UNIQUE,
-    FOREIGN KEY (empleado_id) REFERENCES Empleados(id)
+CREATE TABLE ContactoProveedores (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    proveedor_id INT,
+    contacto VARCHAR(100),
+    telefono VARCHAR(20),
+    FOREIGN KEY (proveedor_id) REFERENCES Proveedores(id)
 );
 
 CREATE TABLE Telefonos (
-    id INT IDENTITY(1,1) PRIMARY KEY,
+    id INT PRIMARY KEY AUTO_INCREMENT,
     cliente_id INT,
-    numero NVARCHAR(20),
-    tipo NVARCHAR(20),
+    telefono VARCHAR(20),
+    tipo VARCHAR(20),  -- Ejemplo: 'fijo', 'móvil'
     FOREIGN KEY (cliente_id) REFERENCES Clientes(id)
 );
 
-CREATE TABLE Proveedores (
-    id INT IDENTITY(1,1) PRIMARY KEY,
-    nombre NVARCHAR(100),
-    direccion_id INT,
-    FOREIGN KEY (direccion_id) REFERENCES Ubicaciones(id)
-);
-
-CREATE TABLE ContactoProveedores (
-    id INT IDENTITY(1,1) PRIMARY KEY,
-    proveedor_id INT,
-    nombre NVARCHAR(100),
-    email NVARCHAR(100),
-    telefono NVARCHAR(20),
-    cargo NVARCHAR(50),
-    FOREIGN KEY (proveedor_id) REFERENCES Proveedores(id)
-);
-
-CREATE TABLE EmpleadosProveedores (
-    empleado_id INT,
-    proveedor_id INT,
-    fecha_asignacion DATE,
-    PRIMARY KEY (empleado_id, proveedor_id),
-    FOREIGN KEY (empleado_id) REFERENCES Empleados(id),
-    FOREIGN KEY (proveedor_id) REFERENCES Proveedores(id)
-);
-
 CREATE TABLE CategoriasProductos (
-    id INT IDENTITY(1,1) PRIMARY KEY,
-    nombre NVARCHAR(100),
-    descripcion NVARCHAR(MAX),
-    categoria_padre_id INT,
-    FOREIGN KEY (categoria_padre_id) REFERENCES CategoriasProductos(id)
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    nombre VARCHAR(100),
+    descripcion TEXT,
+    categoria_padre INT DEFAULT NULL,
+    FOREIGN KEY (categoria_padre) REFERENCES CategoriasProductos(id)
 );
 
 CREATE TABLE Productos (
-    id INT IDENTITY(1,1) PRIMARY KEY,
-    nombre NVARCHAR(100),
-    precio_base DECIMAL(10, 2),
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    nombre VARCHAR(100),
+    precio DECIMAL(10,2),
     proveedor_id INT,
     categoria_id INT,
     FOREIGN KEY (proveedor_id) REFERENCES Proveedores(id),
@@ -96,32 +74,35 @@ CREATE TABLE Productos (
 );
 
 CREATE TABLE Pedidos (
-    id INT IDENTITY(1,1) PRIMARY KEY,
+    id INT PRIMARY KEY AUTO_INCREMENT,
     cliente_id INT,
     fecha DATE,
-    estado NVARCHAR(20) CHECK (estado IN ('pendiente', 'procesando', 'enviado', 'entregado', 'cancelado')),
+    total DECIMAL(10,2),
     FOREIGN KEY (cliente_id) REFERENCES Clientes(id)
 );
 
 CREATE TABLE DetallesPedido (
-    id INT IDENTITY(1,1) PRIMARY KEY,
+    id INT PRIMARY KEY AUTO_INCREMENT,
     pedido_id INT,
     producto_id INT,
     cantidad INT,
-    precio_unitario DECIMAL(10, 2),
-    subtotal DECIMAL(10, 2),
+    precio DECIMAL(10,2),
     FOREIGN KEY (pedido_id) REFERENCES Pedidos(id),
     FOREIGN KEY (producto_id) REFERENCES Productos(id)
 );
 
 CREATE TABLE HistorialPedidos (
-    id INT IDENTITY(1,1) PRIMARY KEY,
+    id INT PRIMARY KEY AUTO_INCREMENT,
     pedido_id INT,
-    fecha_cambio DATETIME,
-    estado_anterior NVARCHAR(20) CHECK (estado_anterior IN ('pendiente', 'procesando', 'enviado', 'entregado', 'cancelado')),
-    estado_nuevo NVARCHAR(20) CHECK (estado_nuevo IN ('pendiente', 'procesando', 'enviado', 'entregado', 'cancelado')),
-    usuario VARCHAR(80),
+    cambio TEXT,
+    fecha_cambio TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (pedido_id) REFERENCES Pedidos(id)
 );
 
-
+CREATE TABLE Empleados_Proveedores (
+    empleado_id INT,
+    proveedor_id INT,
+    PRIMARY KEY (empleado_id, proveedor_id),
+    FOREIGN KEY (empleado_id) REFERENCES Empleados(id),
+    FOREIGN KEY (proveedor_id) REFERENCES Proveedores(id)
+);
